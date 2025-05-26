@@ -1,6 +1,7 @@
 from app import app
+from flask import render_template, redirect, url_for, request
+from app.forms import ExtractForm
 
-from flask import render_template
 
 @app.route("/")
 def index():
@@ -8,7 +9,16 @@ def index():
 
 @app.route("/extract")
 def extract():
-    return render_template("extract.html")
+    form = ExtractForm()
+    return render_template("extract.html", form=form)
+
+@app.route("/extract", methods = ["POST"])
+def extract():
+    form = ExtractForm(request.form)
+    if form.validate():
+        product_id = form.product_id.data
+        return redirect(url_for('product', product_id=product_id))
+    return render_template('extract', form=form)
 
 @app.route("/products")
 def products():
