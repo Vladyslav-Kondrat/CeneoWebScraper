@@ -1,0 +1,11 @@
+{% extends 'base.html' %}
+{% block title %}Charts for {{ product_id }}{% endblock %}
+{% block content %}
+<h3>Recommendations Pie Chart</h3>
+<img src="data:image/png;base64,{{ pie_chart_url }}" alt="Recommendation Pie Chart" class="img-fluid">
+
+<h3>Stars Distribution Bar Chart</h3>
+<img src="data:image/png;base64,{{ bar_chart_url }}" alt="Stars Bar Chart" class="img-fluid">
+
+<a class="btn btn-primary mt-3" href="{{ url_for('product', product_id=product_id) }}">Back to Product Page</a>
+{% endblock %}

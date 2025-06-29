@@ -1,5 +1,44 @@
 {% extends 'base.html' %}
-{% block title %}{{product_id}}{% endblock %}
+{% block title %}Product: {{ product.product_name }}{% endblock %}
 {% block content %}
+<h3>Opinions for {{ product.product_name }}</h3>
 
+
+<div class="mb-3">
+    <a class="btn btn-primary" href="{{ url_for('download_opinions', product_id=product_id, file_type='json') }}">Download JSON</a>
+    <a class="btn btn-primary" href="{{ url_for('download_opinions', product_id=product_id, file_type='csv') }}">Download CSV</a>
+    <a class="btn btn-primary" href="{{ url_for('download_opinions', product_id=product_id, file_type='xlsx') }}">Download XLSX</a>
+    <a class="btn btn-secondary" href="{{ url_for('charts', product_id=product_id) }}">Show Charts</a>
+
+</div>
+
+
+<table class="table table-bordered" id="opinionsTable">
+    <thead>
+        <tr>
+            {% for key in opinions[0].keys() %}
+                <th>{{ key }}</th>
+            {% endfor %}
+        </tr>
+    </thead>
+    <tbody>
+        {% for opinion in opinions %}
+            <tr>
+                {% for value in opinion.values() %}
+                    <td>{{ value }}</td>
+                {% endfor %}
+            </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
+<script>
+    $(document).ready(function () {
+        $('#opinionsTable').DataTable();
+    });
+</script>
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/jquery.dataTables.min.css">
 {% endblock %}

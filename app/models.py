@@ -86,7 +86,8 @@ class Product:
             self.opinions.append(single_opinion)
 
     def import_info(self):
-        with open(f".app/data/products/{self.product_id}.json", "r", encoding="UTF-8") as jf:
+        data_dir = os.path.join(os.path.dirname(__file__), "data", "products")
+        with open(os.path.join(data_dir, f"{self.product_id}.json"), "r", encoding="UTF-8") as jf:
             info = json.load(jf)
         self.product_name = info['product_name']
         self.stats = info['stats']

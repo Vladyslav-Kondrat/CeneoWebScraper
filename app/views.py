@@ -7,6 +7,10 @@ import json
 from flask import send_file, abort
 import pandas as pd
 from io import BytesIO
+import matplotlib.pyplot as plt
+import io
+import base64
+
 
 @app.route("/")
 def index():
@@ -59,7 +63,19 @@ def products():
 
 @app.route("/product/<product_id>")
 def product(product_id):
-    return render_template("product.html", product_id=product_id)
+    opinions_path = f"app/data/opinions/{product_id}.json"
+    product_path = f"app/data/products/{product_id}.json"
+
+    if not (os.path.exists(opinions_path) and os.path.exists(product_path)):
+        return abort(404)
+
+    with open(opinions_path, encoding="utf-8") as f:
+        opinions = json.load(f)
+
+    with open(product_path, encoding="utf-8") as f:
+        product_info = json.load(f)
+
+    return render_template("product.html", product_id=product_id, product=product_info, opinions=opinions)
 
 @app.route("/about")
 def about():
@@ -100,3 +116,48 @@ def download_opinions(product_id, file_type):
         return send_file(output, as_attachment=True, download_name=f"{product_id}.xlsx", mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
     return abort(400, description="Unsupported file format")
+
+
+@app.route("/product/<product_id>/charts")
+def charts(product_id):
+    product = Product(product_id)
+    product.import_info()
+
+    recommendation_data = product.stats.get("recommendations", {})
+    labels = ["Not Recommended", "Recommended", "No Opinion"]
+    values = [
+        recommendation_data.get("false", 0),
+        recommendation_data.get("true", 0),
+        recommendation_data.get("null", 0)
+    ]
+
+    fig1, ax1 = plt.subplots()
+    ax1.pie(values, labels=labels, autopct='%1.1f%%', startangle=90)
+    ax1.axis('equal')
+    pie_chart = io.BytesIO()
+    plt.savefig(pie_chart, format='png')
+    pie_chart.seek(0)
+    pie_chart_url = base64.b64encode(pie_chart.getvalue()).decode()
+
+    plt.close(fig1)
+
+    stars_data = product.stats.get("stars", {})
+    star_labels = list(map(str, stars_data.keys()))
+    star_values = list(stars_data.values())
+
+    fig2, ax2 = plt.subplots()
+    ax2.bar(star_labels, star_values, color='skyblue')
+    ax2.set_xlabel("Stars")
+    ax2.set_ylabel("Number of Opinions")
+    ax2.set_title("Number of Opinions by Star Rating")
+    bar_chart = io.BytesIO()
+    plt.savefig(bar_chart, format='png')
+    bar_chart.seek(0)
+    bar_chart_url = base64.b64encode(bar_chart.getvalue()).decode()
+
+    plt.close(fig2)
+
+    return render_template("charts.html",
+        product_id=product_id,
+        pie_chart_url=pie_chart_url,
+        bar_chart_url=bar_chart_url)
