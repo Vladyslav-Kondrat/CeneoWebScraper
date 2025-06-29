@@ -6,6 +6,7 @@ import os
 import json
 from flask import send_file, abort
 import pandas as pd
+from io import BytesIO
 
 @app.route("/")
 def index():
@@ -34,15 +35,27 @@ def extract():
 
 @app.route("/products")
 def products():
-    products_data = []
-    products_dir = "./app/data/products"
-    if os.path.exists(products_dir):
-        for filename in os.listdir(products_dir):
-            if filename.endswith(".json"):
-                with open(os.path.join(products_dir, filename), encoding="utf-8") as f:
-                    product_data = json.load(f)
-                    products_data.append(product_data)
-    return render_template("products.html", products=products_data)
+    import os, json
+    from app.models import Product
+
+    products_dir = os.path.join(os.path.dirname(__file__), "data", "products")
+    product_files = [f for f in os.listdir(products_dir) if f.endswith(".json")]
+    
+    products = []
+
+    for filename in product_files:
+        with open(os.path.join(products_dir, filename), encoding="utf-8") as f:
+            data = json.load(f)
+            products.append({
+                "product_id": data["product_id"],
+                "product_name": data["product_name"],
+                "opinions_count": data["stats"].get("opinions_count", 0),
+                "pros_count": data["stats"].get("pros_count", 0),
+                "cons_count": data["stats"].get("cons_count", 0),
+                "average_score": data["stats"].get("average_rate", 0)
+            })
+
+    return render_template("products.html", products=products)
 
 @app.route("/product/<product_id>")
 def product(product_id):
@@ -54,30 +67,36 @@ def about():
 
 @app.route("/download/<product_id>/<file_type>")
 def download_opinions(product_id, file_type):
-    base_dir = os.path.abspath(os.path.dirname(__file__))
-    opinions_dir = os.path.join(base_dir, "data", "opinions")
-    json_path = os.path.join(opinions_dir, f"{product_id}.json")
-
-    if not os.path.exists(json_path):
+    opinions_path = os.path.join("app", "data", "opinions", f"{product_id}.json")
+    
+    if not os.path.exists(opinions_path):
         return abort(404, description="Opinions not found")
 
-    with open(json_path, encoding="utf-8") as f:
-        opinions_data = json.load(f)
+    with open(opinions_path, encoding="utf-8") as f:
+        opinions = json.load(f)
 
-    df = pd.DataFrame(opinions_data)
+    if not opinions:
+        return abort(404, description="No opinions to export")
+
+    df = pd.DataFrame(opinions)
 
     if file_type == "json":
-        return send_file(json_path, as_attachment=True)
-    
+        output = BytesIO()
+        output.write(json.dumps(opinions, indent=4, ensure_ascii=False).encode("utf-8"))
+        output.seek(0)
+        return send_file(output, as_attachment=True, download_name=f"{product_id}.json", mimetype="application/json")
+
     elif file_type == "csv":
-        csv_path = os.path.join(opinions_dir, f"{product_id}.csv")
-        df.to_csv(csv_path, index=False)
-        return send_file(csv_path, as_attachment=True)
+        output = BytesIO()
+        df.to_csv(output, index=False)
+        output.seek(0)
+        return send_file(output, as_attachment=True, download_name=f"{product_id}.csv", mimetype="text/csv")
 
     elif file_type == "xlsx":
-        xlsx_path = os.path.join(opinions_dir, f"{product_id}.xlsx")
-        df.to_excel(xlsx_path, index=False)
-        return send_file(xlsx_path, as_attachment=True)
+        output = BytesIO()
+        with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
+            df.to_excel(writer, index=False)
+        output.seek(0)
+        return send_file(output, as_attachment=True, download_name=f"{product_id}.xlsx", mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
-    else:
-        return abort(400, description="Invalid file type")
+    return abort(400, description="Unsupported file format")

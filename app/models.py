@@ -64,7 +64,9 @@ class Product:
             os.mkdir("./app/data")
         if not os.path.exists("./app/data/products"):
             os.mkdir("./app/data/products")
-        with open(f"./app/data/products/{self.product_id}.json", "w", encoding="UTF-8") as jf:
+        info_dir = os.path.join(os.path.dirname(__file__), "data", "products")
+        os.makedirs(info_dir, exist_ok=True)
+        with open(os.path.join(info_dir, f"{self.product_id}.json"), "w", encoding="UTF-8") as jf:
             json.dump(self.transform_to_dict(), jf, ensure_ascii=False, indent=4)
 
     def transform_to_dict(self):
